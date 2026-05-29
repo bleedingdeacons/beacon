@@ -17,6 +17,7 @@
         "phpunit/phpunit": "^9.0|^10.0",
         "10up/wp_mock": "^0.4.2",
         "mockery/mockery": "^1.4",
+        "squizlabs/php_codesniffer": "^3.6",
         "phpstan/phpstan": "^1.4",
         "szepeviktor/phpstan-wordpress": "^1.0"
     },
@@ -30,14 +31,30 @@
             "Beacon\\Tests\\": "tests/"
         }
     },
-    "config": {
-        "optimize-autoloader": true,
-        "sort-packages": true
-    },
     "scripts": {
+        "build": "php build.php build:production",
+        "build:production": "php build.php build:production",
+        "build:dev": "php build.php build:dev",
+        "build:clean": "php build.php clean",
         "test": "phpunit",
         "test:unit": "phpunit --testsuite=Unit",
+        "test:integration": "phpunit --testsuite=Integration",
+        "test:coverage": "phpunit --coverage-html ./tests/coverage",
+        "cs": "phpcs --standard=WordPress ./src",
+        "cs:fix": "phpcbf --standard=WordPress ./src",
         "stan": "phpstan analyse -l 5 ./src",
-        "analyse": "phpstan analyse src/"
+        "analyse": "phpstan analyse src/",
+        "check": [
+            "@cs",
+            "@stan",
+            "@test"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
     }
 }
