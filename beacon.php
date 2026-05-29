@@ -5,11 +5,15 @@ declare(strict_types=1);
 /**
  * Plugin Name: Beacon
  * Description: Abstract interface plugin for call-forwarding systems. Defines the contracts (CallForwardingService, models, transport) that implementation plugins (e.g. Anchor) bind concrete drivers against. Ships no driver of its own — Beacon alone does nothing visible until an implementation plugin is active.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Requires at least: 6.1
  * Requires PHP: 8.1
- * Author: Your Organisation
- * License: GPL-2.0+
+ * GitHub Plugin URI: https://github.com/thebleedingdeacons/beacon
+ * GitHub Branch: main
+ * Author: The Bleeding Deacons
+ * Author URI: https://github.com/bleedingdeacons/beacon
+ * Contact: thebleedingdeacons@gmail.com
+ * License: MIT (Modified)
  * Text Domain: beacon
  */
 

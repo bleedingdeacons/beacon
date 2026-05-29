@@ -1,11 +1,11 @@
 {
-    "name": "call-forwarding/beacon",
+    "name": "bleeding-deacons/beacon",
     "description": "Abstract interface plugin for call-forwarding systems. Defines contracts; an implementation plugin provides the concrete driver.",
     "type": "wordpress-plugin",
-    "license": "GPL-2.0-or-later",
+    "license": "MIT (Modified)",
     "authors": [
         {
-            "name": "Your Organisation"
+            "name": "The Bleeding Deacons"
         }
     ],
     "minimum-stability": "stable",
