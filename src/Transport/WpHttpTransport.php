@@ -70,7 +70,36 @@ final class WpHttpTransport implements HttpTransport
         private readonly int $timeoutSeconds = 15,
         private readonly int $maxRedirects = 5,
         private readonly string $userAgent = 'Beacon (WordPress call-forwarding transport)',
+        /**
+         * Optional log-channel override. This transport is generic —
+         * Beacon ships it as the default for any driver — so by default
+         * it logs to its own class-name channel ("wphttptransport").
+         * A driver that wants the transport's HTTP logging to appear
+         * under the driver's/plugin's own channel (so a log line clearly
+         * identifies which plugin the traffic belongs to) passes its
+         * channel name here, e.g. Tamar passes "tamar". Empty string
+         * means "use the default class-name channel".
+         */
+        private readonly string $logChannel = '',
     ) {
+    }
+
+    /**
+     * Resolve the Sentinel channel for this instance's HTTP logging.
+     * When a per-instance {@see $logChannel} override was supplied we
+     * use it (so the line is attributed to the owning plugin); without
+     * one we defer to the trait's default class-name channel. Returns
+     * null when no logger is available, so callers stay null-safe.
+     */
+    private function channel(): ?\Sentinel_Log_Channel
+    {
+        if ($this->logChannel === '') {
+            return self::log();
+        }
+        if (!function_exists('wp_log')) {
+            return null;
+        }
+        return wp_log($this->logChannel);
     }
 
     /**
@@ -101,11 +130,13 @@ final class WpHttpTransport implements HttpTransport
 
         // Note: the request body and headers can carry credentials and
         // session cookies, so they are deliberately kept out of the log
-        // context. Only the method, URL and byte count are recorded.
-        self::logDebug('HTTP request', [
+        // context. Only the method, URL, byte count and the *names* of
+        // the cookies being replayed are recorded — never cookie values.
+        $this->channel()?->debug('HTTP request', [
             'method' => strtoupper($method),
             'url' => $url,
             'body_bytes' => strlen($body),
+            'cookies_sent' => array_keys($this->cookies),
         ]);
 
         $response = wp_remote_request($url, $args);
@@ -114,7 +145,7 @@ final class WpHttpTransport implements HttpTransport
             // Network-layer failure — DNS, TLS, timeout, refused. The
             // WP_Error code (e.g. 'http_request_failed') is preserved
             // in the message so the operator gets a usable diagnostic.
-            self::logError('HTTP request failed at the network layer', [
+            $this->channel()?->error('HTTP request failed at the network layer', [
                 'method' => strtoupper($method),
                 'url' => $url,
                 'error' => $response->get_error_message(),
@@ -126,24 +157,117 @@ final class WpHttpTransport implements HttpTransport
 
         // Capture any cookies this response set BEFORE returning, so
         // the next call in the sequence is authenticated.
+        $cookiesBefore = array_keys($this->cookies);
         $this->captureCookies($response);
+        $newCookies = array_values(array_diff(array_keys($this->cookies), $cookiesBefore));
 
         $status = (int) wp_remote_retrieve_response_code($response);
         $responseBody = (string) wp_remote_retrieve_body($response);
-        self::logDebug('HTTP response', [
+        $normalisedHeaders = $this->normaliseResponseHeaders($response);
+        $finalUrl = $this->finalUrl($response, $url);
+        $redirected = $finalUrl !== $url;
+
+        // The Location header and the final (post-redirect) URL are
+        // plain URLs, safe to log and essential for diagnosing a login
+        // that "succeeds" but lands back on the login page. We also log
+        // the final URL's path and parsed query parameters separately,
+        // so the outcome signal (e.g. logged_in=1, notify=failedlogin)
+        // is visible as structured data rather than buried in a string.
+        // Param values whose names look secret-bearing are redacted.
+        // Cookie *names* set by this response are logged; values never
+        // are.
+        $this->channel()?->debug('HTTP response', [
             'method' => strtoupper($method),
             'url' => $url,
+            'final_url' => $finalUrl,
+            'redirected' => $redirected,
+            'final_path' => $this->urlPath($finalUrl),
+            'final_query' => $this->urlQueryParams($finalUrl),
+            'location' => $normalisedHeaders['location'] ?? '',
+            'location_query' => $this->urlQueryParams((string) ($normalisedHeaders['location'] ?? '')),
             'status' => $status,
             'body_bytes' => strlen($responseBody),
+            'set_cookie_names' => $newCookies,
+            'jar_cookie_names' => array_keys($this->cookies),
         ]);
 
         return [
             'status'  => $status,
             'body'    => $responseBody,
-            'headers' => $this->normaliseResponseHeaders($response),
+            'headers' => $normalisedHeaders,
         ];
     }
 
+    /**
+     * Best-effort extraction of the URL the request actually ended on
+     * after any redirects. WP exposes the final {@see \WP_HTTP_Requests_Response}
+     * under the `http_response` key; its underlying Requests object
+     * carries the resolved URL. Falls back to the requested URL when
+     * the object isn't available (e.g. a fake transport in tests).
+     *
+     * @param array<string,mixed>|\WP_Error $response
+     */
+    private function finalUrl($response, string $requestedUrl): string
+    {
+        if (!is_array($response)) {
+            return $requestedUrl;
+        }
+        $httpResponse = $response['http_response'] ?? null;
+        if (is_object($httpResponse) && method_exists($httpResponse, 'get_response_object')) {
+            $reqObj = $httpResponse->get_response_object();
+            if (is_object($reqObj) && isset($reqObj->url) && is_string($reqObj->url) && $reqObj->url !== '') {
+                return $reqObj->url;
+            }
+        }
+        return $requestedUrl;
+    }
+
+    /**
+     * The path component of a URL (no scheme/host/query), for logging.
+     * Returns '' if the URL can't be parsed.
+     */
+    private function urlPath(string $url): string
+    {
+        if ($url === '') {
+            return '';
+        }
+        $path = parse_url($url, PHP_URL_PATH);
+        return is_string($path) ? $path : '';
+    }
+
+    /**
+     * Parse a URL's query string into a name => value map for logging.
+     * Values for parameters whose name looks secret-bearing (token,
+     * nonce, key, auth, password, etc.) are redacted; the rest — the
+     * useful outcome signals like `logged_in` or `notify` — are kept
+     * verbatim so they can be read directly in the log.
+     *
+     * @return array<string,string>
+     */
+    private function urlQueryParams(string $url): array
+    {
+        if ($url === '') {
+            return [];
+        }
+        $query = parse_url($url, PHP_URL_QUERY);
+        if (!is_string($query) || $query === '') {
+            return [];
+        }
+        $parsed = [];
+        parse_str($query, $parsed);
+
+        $out = [];
+        foreach ($parsed as $name => $value) {
+            $name = (string) $name;
+            $flat = is_array($value) ? implode(',', array_map('strval', $value)) : (string) $value;
+            if (preg_match('/(pass|pwd|token|nonce|secret|auth|key|sid|session)/i', $name) === 1) {
+                $out[$name] = '[redacted]';
+            } else {
+                $out[$name] = $flat;
+            }
+        }
+        return $out;
+    }
     /**
      * Read-only view of the current jar as name → value pairs. Exposed
      * for diagnostics and tests — the request flow uses the

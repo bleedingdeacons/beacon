@@ -34,6 +34,14 @@ final class WpHttpTransportFactory implements HttpTransportFactory
         private readonly int $timeoutSeconds = 15,
         private readonly int $maxRedirects = 5,
         private readonly string $userAgent = 'Beacon (WordPress call-forwarding transport)',
+        /**
+         * Optional log-channel override passed through to every
+         * transport this factory builds. Lets a driver attribute the
+         * generic transport's HTTP logging to its own plugin channel
+         * (e.g. Tamar → "tamar"). Empty string keeps the transport's
+         * default class-name channel.
+         */
+        private readonly string $logChannel = '',
     ) {
     }
 
@@ -51,6 +59,7 @@ final class WpHttpTransportFactory implements HttpTransportFactory
             timeoutSeconds: $timeoutSeconds ?? $this->timeoutSeconds,
             maxRedirects: $maxRedirects ?? $this->maxRedirects,
             userAgent: $this->userAgent,
+            logChannel: $this->logChannel,
         );
     }
 }
