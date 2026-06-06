@@ -40,6 +40,8 @@ use Beacon\Targets\Models\ForwardingTarget;
  */
 abstract class AbstractCallForwardingService implements CallForwardingService
 {
+    use \Beacon\Logger\HasLogger;
+
     /**
      * Validate a rule before it leaves the driver. Throws on the first
      * problem rather than collecting all of them — the admin UI shows
@@ -117,6 +119,12 @@ abstract class AbstractCallForwardingService implements CallForwardingService
                     'Unknown match type "' . $type . '".'
                 );
         }
+
+        self::logDebug('Rule validated', [
+            'rule_id' => $rule->getId(),
+            'match_type' => $type,
+            'target_id' => $rule->getTargetId(),
+        ]);
     }
 
     /**
@@ -131,16 +139,25 @@ abstract class AbstractCallForwardingService implements CallForwardingService
     protected function hydrateRules(array $rows): array
     {
         $rules = [];
+        $skipped = 0;
         foreach ($rows as $row) {
             if (!is_array($row)) {
                 // Skip non-array entries rather than throwing — a
                 // junk row in the upstream response shouldn't break
                 // the whole list. The driver's parser is the layer
                 // that should already be flagging upstream weirdness.
+                $skipped++;
                 continue;
             }
             $rules[] = new ForwardingRule($row);
         }
+        if ($skipped > 0) {
+            self::logWarning('Skipped non-array rows while hydrating rules', [
+                'skipped' => $skipped,
+                'hydrated' => count($rules),
+            ]);
+        }
+        self::logDebug('Hydrated forwarding rules', ['count' => count($rules)]);
         return $rules;
     }
 
@@ -154,12 +171,21 @@ abstract class AbstractCallForwardingService implements CallForwardingService
     protected function hydrateTargets(array $rows): array
     {
         $targets = [];
+        $skipped = 0;
         foreach ($rows as $row) {
             if (!is_array($row)) {
+                $skipped++;
                 continue;
             }
             $targets[] = new ForwardingTarget($row);
         }
+        if ($skipped > 0) {
+            self::logWarning('Skipped non-array rows while hydrating targets', [
+                'skipped' => $skipped,
+                'hydrated' => count($targets),
+            ]);
+        }
+        self::logDebug('Hydrated forwarding targets', ['count' => count($targets)]);
         return $targets;
     }
 
