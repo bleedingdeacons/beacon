@@ -13,6 +13,7 @@
   <component name="PhpCodeSniffer">
     <phpcs_settings>
       <PhpCSConfiguration beautifier_path="$PROJECT_DIR$/vendor/bin/phpcbf" tool_path="$PROJECT_DIR$/vendor/bin/phpcs" />
+      <phpcs_by_interpreter asDefaultInterpreter="true" interpreter_id="dbd43fc6-a549-4014-8e10-a573a39474d4" beautifier_path="C:\Users\David\Local Sites\stalwart-dev\app\public\wp-content\plugins\beacon\vendor\bin\phpcbf" tool_path="C:\Users\David\Local Sites\stalwart-dev\app\public\wp-content\plugins\beacon\vendor\bin\phpcs" timeout="30000" />
     </phpcs_settings>
   </component>
   <component name="PhpIncludePathManager">
@@ -27,6 +28,7 @@
   <component name="PhpStan">
     <PhpStan_settings>
       <PhpStanConfiguration tool_path="$PROJECT_DIR$/vendor/bin/phpstan" />
+      <phpstan_by_interpreter asDefaultInterpreter="true" interpreter_id="dbd43fc6-a549-4014-8e10-a573a39474d4" tool_path="C:\Users\David\Local Sites\stalwart-dev\app\public\wp-content\plugins\beacon\vendor\bin\phpstan" timeout="60000" />
     </PhpStan_settings>
   </component>
   <component name="PhpStanOptionsConfiguration">
@@ -36,7 +38,13 @@
   <component name="PhpUnit">
     <phpunit_settings>
       <PhpUnitSettings configuration_file_path="$PROJECT_DIR$/phpunit.xml" custom_loader_path="$PROJECT_DIR$/vendor/autoload.php" use_configuration_file="true" />
+      <PhpUnitSettings configuration_file_path="$PROJECT_DIR$/../tamar/phpunit.xml" custom_loader_path="$PROJECT_DIR$/../tamar/vendor/autoload.php" use_configuration_file="true" />
     </phpunit_settings>
+  </component>
+  <component name="Psalm">
+    <Psalm_settings>
+      <psalm_fixer_by_interpreter asDefaultInterpreter="true" interpreter_id="dbd43fc6-a549-4014-8e10-a573a39474d4" timeout="60000" />
+    </Psalm_settings>
   </component>
   <component name="PsalmOptionsConfiguration">
     <option name="transferred" value="true" />
