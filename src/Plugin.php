@@ -71,11 +71,24 @@ class Plugin
 
         (new BeaconServiceProvider())->register($container);
 
-        // Expose the bound driver (whichever implementation provides it)
-        // over REST. The controller resolves the service lazily per
-        // request and 503s when no driver is active, so registering it
-        // here is safe even though Beacon ships no driver itself.
-        (new \Beacon\Rest\ForwardingRestController($container))->register();
+        // The forwarding API is private: it drives where AA helpline
+        // calls get routed, so it must only ever be reached in-process by
+        // a trusted plugin service — never as a public HTTP endpoint.
+        //
+        // The supported integration path is the container service: a
+        // consumer plugin (Trusted, Tamar's admin, etc.) hooks
+        // `beacon/loaded`, takes the passed container, and resolves
+        // CallForwardingService directly — no HTTP round-trip, no exposed
+        // route to attack.
+        //
+        // The REST wrapper therefore stays OFF unless an operator
+        // explicitly opts in by defining BEACON_ENABLE_REST in
+        // wp-config.php (e.g. for a vetted external client behind its own
+        // auth). Default-deny keeps the attack surface closed.
+        if (defined('BEACON_ENABLE_REST') && BEACON_ENABLE_REST) {
+            (new \Beacon\Rest\ForwardingRestController($container))->register();
+            self::logWarning('Forwarding REST API enabled via BEACON_ENABLE_REST — this exposes call-forwarding control over HTTP.');
+        }
 
         self::$initialized = true;
 
