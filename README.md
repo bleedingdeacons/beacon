@@ -1,6 +1,6 @@
 # Beacon — Call-Forwarding Contracts
 
-**Version:** 1.1.6
+**Version:** 1.1.7
 
 PSR-compliant contract layer for WordPress-administered call forwarding. Ships interfaces, value objects, and shared traits; an implementation plugin (e.g. **Anchor**) provides the concrete driver and wires everything into the shared container.
 
@@ -35,7 +35,7 @@ Beacon itself never opens a socket and never knows about your PBX.
 composer install
 ```
 
-Activate Beacon, then activate an implementation plugin (e.g. Anchor). Beacon alone does nothing visible — it will surface an admin notice when no driver is bound.
+Activate Beacon, then activate an implementation plugin (e.g. Tamar). Beacon alone does nothing visible — it will surface an admin notice when no driver is bound.
 
 ## Hooks
 
