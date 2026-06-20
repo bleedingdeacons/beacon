@@ -41,9 +41,11 @@ require_once __DIR__ . '/Support/FakeWpHttp.php';
 if (!class_exists('WP_Error')) {
     class WP_Error
     {
+        /** @param mixed $data */
         public function __construct(
             private string $code = '',
             private string $message = '',
+            private mixed $data = null,
         ) {
         }
 
@@ -55,6 +57,61 @@ if (!class_exists('WP_Error')) {
         public function get_error_message(): string
         {
             return $this->message;
+        }
+
+        /** @return mixed */
+        public function get_error_data()
+        {
+            return $this->data;
+        }
+    }
+}
+
+// --- WP REST API shims (for the ForwardingRestController tests) ---------
+//
+// Just enough of WP_REST_Request / WP_REST_Response to drive the
+// controller's route callbacks directly in a unit test. Guarded so a
+// real WordPress test environment supplies the genuine classes.
+
+if (!class_exists('WP_REST_Request')) {
+    class WP_REST_Request
+    {
+        /** @param array<string,mixed> $params */
+        public function __construct(private array $params = [])
+        {
+        }
+
+        /** @return mixed */
+        public function get_param(string $key)
+        {
+            return $this->params[$key] ?? null;
+        }
+
+        /** @param mixed $value */
+        public function set_param(string $key, $value): void
+        {
+            $this->params[$key] = $value;
+        }
+    }
+}
+
+if (!class_exists('WP_REST_Response')) {
+    class WP_REST_Response
+    {
+        /** @param mixed $data */
+        public function __construct(private mixed $data = null, private int $status = 200)
+        {
+        }
+
+        /** @return mixed */
+        public function get_data()
+        {
+            return $this->data;
+        }
+
+        public function get_status(): int
+        {
+            return $this->status;
         }
     }
 }

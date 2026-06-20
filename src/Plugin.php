@@ -71,6 +71,12 @@ class Plugin
 
         (new BeaconServiceProvider())->register($container);
 
+        // Expose the bound driver (whichever implementation provides it)
+        // over REST. The controller resolves the service lazily per
+        // request and 503s when no driver is active, so registering it
+        // here is safe even though Beacon ships no driver itself.
+        (new \Beacon\Rest\ForwardingRestController($container))->register();
+
         self::$initialized = true;
 
         self::logDebug('Initialised', ['version' => defined('BEACON_VERSION') ? BEACON_VERSION : 'unknown']);
