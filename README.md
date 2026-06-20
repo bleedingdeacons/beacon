@@ -1,6 +1,6 @@
 # Beacon — Call-Forwarding Contracts
 
-**Version:** 1.1.5
+**Version:** 1.1.6
 
 PSR-compliant contract layer for WordPress-administered call forwarding. Ships interfaces, value objects, and shared traits; an implementation plugin (e.g. **Anchor**) provides the concrete driver and wires everything into the shared container.
 
