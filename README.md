@@ -1,6 +1,9 @@
 # Beacon — Call-Forwarding Contracts
 
-**Version:** 1.1.9
+[![CI](https://github.com/bleedingdeacons/beacon/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bleedingdeacons/beacon/actions/workflows/ci.yml)
+![Version](https://img.shields.io/badge/version-1.1.9-blue)
+![PHP](https://img.shields.io/badge/php-8.1%2B-777bb4)
+![Licence](https://img.shields.io/badge/licence-MIT%20(Modified)-green)
 
 PSR-compliant contract layer for WordPress-administered call forwarding. Ships interfaces, value objects, and shared traits; an implementation plugin (e.g. **Anchor**) provides the concrete driver and wires everything into the shared container.
 
