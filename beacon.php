@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Beacon
  * Description: Abstract interface plugin for call-forwarding systems. Defines the contracts (CallForwardingService, models, transport) that implementation plugins (e.g. Tamar) bind concrete drivers against. Ships no driver of its own — Beacon alone does nothing visible until an implementation plugin is active.
- * Version: 1.1.9
+ * Version: 1.1.10
  * Requires at least: 6.1
  * Requires PHP: 8.1
  * GitHub Plugin URI: https://github.com/thebleedingdeacons/beacon
