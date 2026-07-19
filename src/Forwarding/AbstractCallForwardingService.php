@@ -133,7 +133,13 @@ abstract class AbstractCallForwardingService implements CallForwardingService
      * abstract takes care of turning them into value objects so each
      * driver doesn't reimplement the same loop.
      *
-     * @param array<int,array<string,mixed>> $rows
+     * Entries are typed as mixed, not as arrays: these rows come straight
+     * from a driver's parse of an upstream response, and the is_array()
+     * guard below is the thing that makes a junk entry survivable. Promising
+     * array<string,mixed> here would be a promise this method exists to
+     * doubt — and would make static analysis prove the guard dead.
+     *
+     * @param array<int,mixed> $rows
      * @return array<int,ForwardingRule>
      */
     protected function hydrateRules(array $rows): array
@@ -165,7 +171,9 @@ abstract class AbstractCallForwardingService implements CallForwardingService
      * Hydrate an array of raw target arrays into ForwardingTarget
      * objects.
      *
-     * @param array<int,array<string,mixed>> $rows
+     * Entries typed as mixed for the same reason as {@see hydrateRules()}.
+     *
+     * @param array<int,mixed> $rows
      * @return array<int,ForwardingTarget>
      */
     protected function hydrateTargets(array $rows): array
