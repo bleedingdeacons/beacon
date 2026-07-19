@@ -9,9 +9,11 @@ parameters:
         - tests
     bootstrapFiles:
         - vendor/autoload.php
-    stubFiles:
-        # Add custom stub files here if needed
-    ignoreErrors:
-        # WordPress functions that PHPStan doesn't recognize
-        - '#Function get_plugin_data not found#'
-        - '#Function dbDelta not found#'
+    # Sentinel is an optional runtime dependency: HasLogger degrades to
+    # error_log() when it is absent. Scanning its source makes
+    # Sentinel_Log_Channel resolvable without requiring it via composer.
+    # sentinel-logger.php is not PSR-4 compliant and composer skips it when
+    # generating autoload rules, so scanDirectories (which reads files
+    # directly) is what resolves it. Matches amber and trumpet.
+    scanDirectories:
+        - ../sentinel/src
