@@ -6,8 +6,8 @@ namespace Beacon\Tests\Unit;
 
 use Beacon\Transport\Interfaces\HttpTransport;
 use Beacon\Transport\Interfaces\TransportException;
-use PHPUnit\Framework\TestCase;
-use Beacon\Tests\Support\FakeWpHttp;
+use BleedingDeacons\WpMocks\TestCase;
+use BleedingDeacons\WpMocks\Doubles\FakeWpHttp;
 use Beacon\Transport\WpHttpTransport;
 
 /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Beacon\Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use BleedingDeacons\WpMocks\TestCase;
 use Beacon\Forwarding\AbstractCallForwardingService;
 use Beacon\Forwarding\Interfaces\ForwardingException;
 use Beacon\Forwarding\Models\ForwardingRule;

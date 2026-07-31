@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Beacon\Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use BleedingDeacons\WpMocks\TestCase;
 use Psr\Container\NotFoundExceptionInterface;
 use Beacon\Core\BeaconContainer;
 
