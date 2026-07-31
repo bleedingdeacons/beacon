@@ -10,7 +10,7 @@ use Beacon\Forwarding\Interfaces\ForwardingException;
 use Beacon\Forwarding\Models\ForwardingRule;
 use Beacon\Rest\ForwardingRestController;
 use Beacon\Targets\Models\ForwardingTarget;
-use PHPUnit\Framework\TestCase;
+use BleedingDeacons\WpMocks\TestCase;
 
 /**
  * Exercises the controller's route callbacks directly against a fake

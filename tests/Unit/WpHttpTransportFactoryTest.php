@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Beacon\Tests\Unit;
 
-use Beacon\Tests\Support\FakeWpHttp;
+use BleedingDeacons\WpMocks\Doubles\FakeWpHttp;
 use Beacon\Transport\Interfaces\HttpTransport;
 use Beacon\Transport\Interfaces\HttpTransportFactory;
 use Beacon\Transport\WpHttpTransport;
 use Beacon\Transport\WpHttpTransportFactory;
-use PHPUnit\Framework\TestCase;
+use BleedingDeacons\WpMocks\TestCase;
 
 /**
  * Unit tests for {@see WpHttpTransportFactory}.
