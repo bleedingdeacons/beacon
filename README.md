@@ -3,7 +3,7 @@
 [![CI](https://github.com/bleedingdeacons/beacon/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bleedingdeacons/beacon/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/bleedingdeacons/beacon/badge.svg?branch=main)](https://coveralls.io/github/bleedingdeacons/beacon?branch=main)
 ![PHPStan](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbleedingdeacons%2Fbeacon%2Fmain%2Fphpstan.neon.dist&query=%24.parameters.level&label=PHPStan&prefix=level%20&color=brightgreen)
-![Version](https://img.shields.io/badge/version-1.1.16-blue)
+![Version](https://img.shields.io/badge/version-1.1.17-blue)
 ![PHP](https://img.shields.io/badge/php-8.1%2B-777bb4)
 ![Licence](https://img.shields.io/badge/licence-MIT%20(Modified)-green)
 
