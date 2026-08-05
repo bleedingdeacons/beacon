@@ -18,13 +18,34 @@ use Beacon\Forwarding\Models\ForwardingRule;
  */
 final class TestableService extends AbstractCallForwardingService
 {
-    public function listRules(): array { return []; }
-    public function findRule(string $ruleId): ?ForwardingRule { return null; }
-    public function saveRule(ForwardingRule $rule): string { return ''; }
-    public function deleteRule(string $ruleId): bool { return false; }
-    public function listTargets(): array { return []; }
-    public function commit(): bool { return true; }
-    public function testConnection(): bool { return true; }
+    public function listRules(): array
+    {
+        return [];
+    }
+    public function findRule(string $ruleId): ?ForwardingRule
+    {
+        return null;
+    }
+    public function saveRule(ForwardingRule $rule): string
+    {
+        return '';
+    }
+    public function deleteRule(string $ruleId): bool
+    {
+        return false;
+    }
+    public function listTargets(): array
+    {
+        return [];
+    }
+    public function commit(): bool
+    {
+        return true;
+    }
+    public function testConnection(): bool
+    {
+        return true;
+    }
 
     // Expose protected method for testing.
     public function exposeValidate(ForwardingRule $rule): void

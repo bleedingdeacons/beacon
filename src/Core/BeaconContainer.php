@@ -73,6 +73,7 @@ final class BeaconContainer implements ContainerInterface
             $this->instances[$id] = $instance;
             return $instance;
         }
-        throw new class("Beacon container: no binding for '{$id}'.") extends \RuntimeException implements NotFoundExceptionInterface {};
+        throw new class ("Beacon container: no binding for '{$id}'.") extends \RuntimeException implements NotFoundExceptionInterface {
+        };
     }
 }
