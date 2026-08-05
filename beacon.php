@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Plugin Name: Beacon
  * Description: Abstract interface plugin for call-forwarding systems. Defines the contracts (CallForwardingService, models, transport) that implementation plugins (e.g. Tamar) bind concrete drivers against. Ships no driver of its own — Beacon alone does nothing visible until an implementation plugin is active.
@@ -16,6 +14,8 @@ declare(strict_types=1);
  * License: MIT (Modified)
  * Text Domain: beacon
  */
+
+declare(strict_types=1);
 
 if (!defined('ABSPATH')) {
     exit;
@@ -86,7 +86,8 @@ spl_autoload_register(function ($class) {
  * @return \Psr\Container\ContainerInterface
  * @throws \RuntimeException If Beacon is not initialised yet.
  */
-function beacon(): \Psr\Container\ContainerInterface {
+function beacon(): \Psr\Container\ContainerInterface
+{
     return \Beacon\Plugin::getContainer();
 }
 
@@ -111,7 +112,6 @@ add_action('plugins_loaded', function () {
          * @param \Psr\Container\ContainerInterface $container The shared dependency container
          */
         do_action('beacon/loaded', \Beacon\Plugin::getContainer());
-
     } catch (\Exception $e) {
         function_exists('wp_log')
             ? wp_log('beacon')->error('Beacon Plugin Initialisation Error: ' . $e->getMessage(), ['exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()])
