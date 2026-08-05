@@ -3,8 +3,8 @@ Contributors: thebleedingdeacons
 Tags: call-forwarding, contracts, interfaces, telephony, pbx
 Requires at least: 6.1
 Tested up to: 6.9
-Stable tag: 1.4.1
-Build date: 2026/08/05 15:03:22
+Stable tag: 1.4.2
+Build date: 2026/08/05 22:53:49
 Requires PHP: 8.1
 License: MIT (Modified — No Resale)
 
