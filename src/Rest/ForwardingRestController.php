@@ -131,8 +131,10 @@ final class ForwardingRestController
     public function listRules(\WP_REST_Request $request)
     {
         return $this->withService(
+            // array_values because listRules() promises array<int,...>, not a
+            // list — gappy keys would json_encode as an object, not an array.
             fn(CallForwardingService $svc) => $this->ok(
-                array_map(fn(ForwardingRule $r) => $r->toArray(), $svc->listRules())
+                array_values(array_map(fn(ForwardingRule $r) => $r->toArray(), $svc->listRules()))
             )
         );
     }
@@ -199,8 +201,9 @@ final class ForwardingRestController
     public function listTargets(\WP_REST_Request $request)
     {
         return $this->withService(
+            // As listRules() above: keep the response a JSON array.
             fn(CallForwardingService $svc) => $this->ok(
-                array_map(fn($t) => $t->toArray(), $svc->listTargets())
+                array_values(array_map(fn($t) => $t->toArray(), $svc->listTargets()))
             )
         );
     }
