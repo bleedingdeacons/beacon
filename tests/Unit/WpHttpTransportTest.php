@@ -211,6 +211,33 @@ final class WpHttpTransportTest extends TestCase
         self::assertArrayHasKey('Accept', $headers);
     }
 
+    public function test_it_introduces_itself_as_beacon_by_default(): void
+    {
+        FakeWpHttp::pushResponse(200, '');
+
+        (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
+
+        self::assertSame(
+            'Beacon/9.9.9 (rest@aa-bristol.org; https://example.test)',
+            FakeWpHttp::sentArgs(0)['user-agent'],
+        );
+    }
+
+    public function test_a_driver_user_agent_overrides_the_beacon_default(): void
+    {
+        // Tamar owns the conversation with the panel, so the panel
+        // should see Tamar rather than the framework underneath it.
+        FakeWpHttp::pushResponse(200, '');
+
+        (new WpHttpTransport(userAgent: 'Tamar/1.2.3 (rest@aa-bristol.org; https://example.test)'))
+            ->request('GET', 'https://pbx.example.com/');
+
+        self::assertSame(
+            'Tamar/1.2.3 (rest@aa-bristol.org; https://example.test)',
+            FakeWpHttp::sentArgs(0)['user-agent'],
+        );
+    }
+
     public function test_method_is_upper_cased(): void
     {
         FakeWpHttp::pushResponse(200, '');
