@@ -38,6 +38,12 @@ if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__ . '/');
 }
 
+// The user-agent builder reports the plugin version, so the tests run the
+// same branch production does rather than the "no version defined" fallback.
+if (!defined('BEACON_VERSION')) {
+    define('BEACON_VERSION', '9.9.9');
+}
+
 $src = __DIR__ . '/../src';
 require_once $src . '/Core/BeaconContainer.php';
 require_once $src . '/Forwarding/Interfaces/CallForwardingService.php';
@@ -48,5 +54,6 @@ require_once $src . '/Targets/Models/ForwardingTarget.php';
 require_once $src . '/Transport/Interfaces/HttpTransport.php';
 require_once $src . '/Transport/Interfaces/TransportException.php';
 require_once $src . '/Transport/Interfaces/HttpTransportFactory.php';
+require_once $src . '/Transport/UserAgent.php';
 require_once $src . '/Transport/WpHttpTransport.php';
 require_once $src . '/Transport/WpHttpTransportFactory.php';

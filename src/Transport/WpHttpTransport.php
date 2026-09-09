@@ -69,7 +69,14 @@ final class WpHttpTransport implements HttpTransport
         private readonly bool $verifyTls = true,
         private readonly int $timeoutSeconds = 15,
         private readonly int $maxRedirects = 5,
-        private readonly string $userAgent = 'Beacon (WordPress call-forwarding transport)',
+        /**
+         * Overrides the user-agent this transport introduces itself
+         * with. Empty string means "identify as Beacon"; a driver that
+         * owns the conversation passes its own — see
+         * {@see UserAgent::forApp()} — so the upstream sees the plugin
+         * making the request rather than the framework underneath it.
+         */
+        private readonly string $userAgent = '',
         /**
          * Optional log-channel override. This transport is generic —
          * Beacon ships it as the default for any driver — so by default
@@ -82,6 +89,20 @@ final class WpHttpTransport implements HttpTransport
          */
         private readonly string $logChannel = '',
     ) {
+    }
+
+    /**
+     * Resolve the user-agent for this instance. Without a per-driver
+     * override we introduce ourselves as Beacon, with the version and
+     * contact details an upstream needs to identify the traffic.
+     */
+    private function userAgent(): string
+    {
+        if ($this->userAgent !== '') {
+            return $this->userAgent;
+        }
+
+        return UserAgent::plugin();
     }
 
     /**
@@ -116,7 +137,7 @@ final class WpHttpTransport implements HttpTransport
             'redirection' => $this->maxRedirects,
             'sslverify'   => $this->verifyTls,
             'httpversion' => '1.1',
-            'user-agent'  => $this->userAgent,
+            'user-agent'  => $this->userAgent(),
             'headers'     => $this->prepareRequestHeaders($headers),
             'cookies'     => array_values($this->cookies),
         ];
