@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * PHPUnit bootstrap for Beacon.
+ * Test bootstrap for Beacon, loaded by Pest through phpunit.xml.
  *
  * WordPress stand-ins come from bleedingdeacons/wp-mocks, shared across the
  * plugin suite. Its bootstrap loads Patchwork before anything patchable, so

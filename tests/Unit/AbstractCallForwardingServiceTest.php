@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Beacon\Tests\Unit;
 
-use BleedingDeacons\WpMocks\TestCase;
 use Beacon\Forwarding\AbstractCallForwardingService;
 use Beacon\Forwarding\Interfaces\ForwardingException;
 use Beacon\Forwarding\Models\ForwardingRule;
@@ -54,78 +53,61 @@ final class TestableService extends AbstractCallForwardingService
     }
 }
 
-final class AbstractCallForwardingServiceTest extends TestCase
-{
-    public function test_rule_without_target_throws(): void
-    {
-        $service = new TestableService();
-        $rule = new ForwardingRule(['target_id' => '']);
+it('throws for a rule without a target', function () {
+    $service = new TestableService();
+    $rule = new ForwardingRule(['target_id' => '']);
 
-        $this->expectException(ForwardingException::class);
-        $this->expectExceptionMessage('no target');
-        $service->exposeValidate($rule);
-    }
+    $service->exposeValidate($rule);
+})->throws(ForwardingException::class, 'no target');
 
-    public function test_any_rule_passes_validation(): void
-    {
-        $service = new TestableService();
-        $rule = new ForwardingRule([
-            'target_id' => 't-1',
-            'match' => ['type' => 'any'],
-        ]);
+it('passes an any rule through validation', function () {
+    $service = new TestableService();
+    $rule = new ForwardingRule([
+        'target_id' => 't-1',
+        'match' => ['type' => 'any'],
+    ]);
 
-        $service->exposeValidate($rule);
-        $this->assertTrue(true); // didn't throw
-    }
+    expect(fn () => $service->exposeValidate($rule))->not->toThrow(ForwardingException::class); // didn't throw
+});
 
-    public function test_source_number_rule_requires_plausible_number(): void
-    {
-        $service = new TestableService();
-        $rule = new ForwardingRule([
-            'target_id' => 't-1',
-            'match' => ['type' => 'source_number', 'value' => 'x'],
-        ]);
+it('requires a plausible number for a source number rule', function () {
+    $service = new TestableService();
+    $rule = new ForwardingRule([
+        'target_id' => 't-1',
+        'match' => ['type' => 'source_number', 'value' => 'x'],
+    ]);
 
-        $this->expectException(ForwardingException::class);
-        $service->exposeValidate($rule);
-    }
+    $service->exposeValidate($rule);
+})->throws(ForwardingException::class);
 
-    public function test_time_window_with_bad_format_throws(): void
-    {
-        $service = new TestableService();
-        $rule = new ForwardingRule([
-            'target_id' => 't-1',
-            'match' => ['type' => 'time_window', 'value' => ['from' => '25:00', 'to' => '09:00']],
-        ]);
+it('throws for a time window with a bad format', function () {
+    $service = new TestableService();
+    $rule = new ForwardingRule([
+        'target_id' => 't-1',
+        'match' => ['type' => 'time_window', 'value' => ['from' => '25:00', 'to' => '09:00']],
+    ]);
 
-        $this->expectException(ForwardingException::class);
-        $this->expectExceptionMessage('HH:MM');
-        $service->exposeValidate($rule);
-    }
+    $service->exposeValidate($rule);
+})->throws(ForwardingException::class, 'HH:MM');
 
-    public function test_caller_id_list_must_be_non_empty(): void
-    {
-        $service = new TestableService();
-        $rule = new ForwardingRule([
-            'target_id' => 't-1',
-            'match' => ['type' => 'caller_id_list', 'value' => []],
-        ]);
+it('requires a caller id list to be non-empty', function () {
+    $service = new TestableService();
+    $rule = new ForwardingRule([
+        'target_id' => 't-1',
+        'match' => ['type' => 'caller_id_list', 'value' => []],
+    ]);
 
-        $this->expectException(ForwardingException::class);
-        $service->exposeValidate($rule);
-    }
+    $service->exposeValidate($rule);
+})->throws(ForwardingException::class);
 
-    public function test_wrapping_midnight_time_window_is_allowed(): void
-    {
-        // 18:00 → 08:00 means "overnight", and many PBXes support it.
-        // We pass it through rather than guessing.
-        $service = new TestableService();
-        $rule = new ForwardingRule([
-            'target_id' => 't-1',
-            'match' => ['type' => 'time_window', 'value' => ['from' => '18:00', 'to' => '08:00']],
-        ]);
+it('allows a time window that wraps midnight', function () {
+    // 18:00 → 08:00 means "overnight", and many PBXes support it.
+    // We pass it through rather than guessing.
+    $service = new TestableService();
+    $rule = new ForwardingRule([
+        'target_id' => 't-1',
+        'match' => ['type' => 'time_window', 'value' => ['from' => '18:00', 'to' => '08:00']],
+    ]);
 
-        $service->exposeValidate($rule);
-        $this->assertTrue(true);
-    }
-}
+    expect(fn () => $service->exposeValidate($rule))->not->toThrow(ForwardingException::class);
+});

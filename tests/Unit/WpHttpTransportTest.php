@@ -6,11 +6,10 @@ namespace Beacon\Tests\Unit;
 
 use Beacon\Transport\Interfaces\HttpTransport;
 use Beacon\Transport\Interfaces\TransportException;
-use BleedingDeacons\WpMocks\TestCase;
 use BleedingDeacons\WpMocks\Doubles\FakeWpHttp;
 use Beacon\Transport\WpHttpTransport;
 
-/**
+/*
  * Unit tests for {@see WpHttpTransport}.
  *
  * These drive the WP HTTP API shims (see tests/bootstrap.php) via
@@ -24,250 +23,223 @@ use Beacon\Transport\WpHttpTransport;
  * Set-Cookie parsing depend on WP's actual Requests library, which a
  * future integration test (wp_mock / a WP test harness) should cover.
  */
-final class WpHttpTransportTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        FakeWpHttp::reset();
-    }
 
-    public function test_it_implements_the_http_transport_contract(): void
-    {
-        self::assertInstanceOf(HttpTransport::class, new WpHttpTransport());
-    }
+beforeEach(function () {
+    FakeWpHttp::reset();
+});
 
-    public function test_it_returns_status_body_and_lowercased_headers(): void
-    {
-        FakeWpHttp::pushResponse(
-            200,
-            '<html>ok</html>',
-            ['Content-Type' => 'text/html; charset=utf-8', 'X-Upstream' => 'pbx'],
-        );
+it('implements the http transport contract', function () {
+    expect(new WpHttpTransport())->toBeInstanceOf(HttpTransport::class);
+});
 
-        $result = (new WpHttpTransport())->request('GET', 'https://pbx.example.com/huntgroup');
+it('returns status, body and lower-cased headers', function () {
+    FakeWpHttp::pushResponse(
+        200,
+        '<html>ok</html>',
+        ['Content-Type' => 'text/html; charset=utf-8', 'X-Upstream' => 'pbx'],
+    );
 
-        self::assertSame(200, $result['status']);
-        self::assertSame('<html>ok</html>', $result['body']);
-        // Keys lower-cased per the HttpTransport contract.
-        self::assertArrayHasKey('content-type', $result['headers']);
-        self::assertArrayHasKey('x-upstream', $result['headers']);
-        self::assertArrayNotHasKey('Content-Type', $result['headers']);
-        self::assertSame('text/html; charset=utf-8', $result['headers']['content-type']);
-    }
+    $result = (new WpHttpTransport())->request('GET', 'https://pbx.example.com/huntgroup');
 
-    public function test_multivalue_response_headers_are_joined_into_a_string(): void
-    {
-        FakeWpHttp::pushResponse(
-            200,
-            '',
-            ['set-cookie' => ['a=1', 'b=2']],
-        );
+    expect($result['status'])->toBe(200)
+        ->and($result['body'])->toBe('<html>ok</html>');
+    // Keys lower-cased per the HttpTransport contract.
+    expect($result['headers'])->toHaveKey('content-type')
+        ->toHaveKey('x-upstream')
+        ->not->toHaveKey('Content-Type')
+        ->and($result['headers']['content-type'])->toBe('text/html; charset=utf-8');
+});
 
-        $result = (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
+it('joins multi-value response headers into a string', function () {
+    FakeWpHttp::pushResponse(
+        200,
+        '',
+        ['set-cookie' => ['a=1', 'b=2']],
+    );
 
-        self::assertSame('a=1, b=2', $result['headers']['set-cookie']);
-    }
+    $result = (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
 
-    public function test_it_reads_a_getAll_style_header_dictionary(): void
-    {
-        // WP hands back a case-insensitive dictionary object on success;
-        // the transport must read it via getAll().
-        $dict = new class {
-            /** @return array<string,string> */
-            public function getAll(): array
-            {
-                return ['Content-Type' => 'text/html'];
-            }
-        };
-        FakeWpHttp::pushResponse(200, 'body', $dict);
+    expect($result['headers']['set-cookie'])->toBe('a=1, b=2');
+});
 
-        $result = (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
+it('reads a getAll-style header dictionary', function () {
+    // WP hands back a case-insensitive dictionary object on success;
+    // the transport must read it via getAll().
+    $dict = new class {
+        /** @return array<string,string> */
+        public function getAll(): array
+        {
+            return ['Content-Type' => 'text/html'];
+        }
+    };
+    FakeWpHttp::pushResponse(200, 'body', $dict);
 
-        self::assertSame('text/html', $result['headers']['content-type']);
-    }
+    $result = (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
 
-    public function test_4xx_and_5xx_are_returned_not_thrown(): void
-    {
-        FakeWpHttp::pushResponse(404, 'not found');
-        FakeWpHttp::pushResponse(503, 'unavailable');
+    expect($result['headers']['content-type'])->toBe('text/html');
+});
 
-        $transport = new WpHttpTransport();
+it('returns 4xx and 5xx responses rather than throwing', function () {
+    FakeWpHttp::pushResponse(404, 'not found');
+    FakeWpHttp::pushResponse(503, 'unavailable');
 
-        $notFound = $transport->request('GET', 'https://pbx.example.com/missing');
-        self::assertSame(404, $notFound['status']);
-        self::assertSame('not found', $notFound['body']);
+    $transport = new WpHttpTransport();
 
-        $down = $transport->request('GET', 'https://pbx.example.com/down');
-        self::assertSame(503, $down['status']);
-    }
+    $notFound = $transport->request('GET', 'https://pbx.example.com/missing');
+    expect($notFound['status'])->toBe(404)
+        ->and($notFound['body'])->toBe('not found');
 
-    public function test_a_network_failure_throws_transport_exception(): void
-    {
-        FakeWpHttp::push(new \WP_Error('http_request_failed', 'cURL error 28: Operation timed out'));
+    $down = $transport->request('GET', 'https://pbx.example.com/down');
+    expect($down['status'])->toBe(503);
+});
 
-        $this->expectException(TransportException::class);
-        $this->expectExceptionMessage('timed out');
+it('throws a transport exception on a network failure', function () {
+    FakeWpHttp::push(new \WP_Error('http_request_failed', 'cURL error 28: Operation timed out'));
 
-        (new WpHttpTransport())->request('GET', 'https://pbx.example.com/huntgroup');
-    }
+    (new WpHttpTransport())->request('GET', 'https://pbx.example.com/huntgroup');
+})->throws(TransportException::class, 'timed out');
 
-    public function test_it_captures_a_session_cookie_and_replays_it_on_the_next_request(): void
-    {
-        // Login sets the cookie…
-        FakeWpHttp::pushResponse(302, '', ['location' => '/dashboard'], [
-            new \WP_Http_Cookie(['name' => 'PHPSESSID', 'value' => 'abc123']),
-        ]);
-        // …the follow-up GET carries no new cookie.
-        FakeWpHttp::pushResponse(200, '<form>edit</form>');
+it('captures a session cookie and replays it on the next request', function () {
+    // Login sets the cookie…
+    FakeWpHttp::pushResponse(302, '', ['location' => '/dashboard'], [
+        new \WP_Http_Cookie(['name' => 'PHPSESSID', 'value' => 'abc123']),
+    ]);
+    // …the follow-up GET carries no new cookie.
+    FakeWpHttp::pushResponse(200, '<form>edit</form>');
 
-        $transport = new WpHttpTransport();
+    $transport = new WpHttpTransport();
 
-        $login = $transport->request('POST', 'https://pbx.example.com/login/', [], 'user=u&pass=p');
-        self::assertSame(302, $login['status']);
-        self::assertSame('abc123', $transport->cookies()['PHPSESSID']);
+    $login = $transport->request('POST', 'https://pbx.example.com/login/', [], 'user=u&pass=p');
+    expect($login['status'])->toBe(302)
+        ->and($transport->cookies()['PHPSESSID'])->toBe('abc123');
 
-        $transport->request('GET', 'https://pbx.example.com/huntgroup?huntgroup=1');
+    $transport->request('GET', 'https://pbx.example.com/huntgroup?huntgroup=1');
 
-        // The cookie must have been replayed on the second outbound call.
-        $cookiesSent = FakeWpHttp::sentArgs(1)['cookies'];
-        $names = array_map(static fn (\WP_Http_Cookie $c) => $c->name, $cookiesSent);
-        self::assertContains('PHPSESSID', $names);
-        $session = array_values(array_filter(
-            $cookiesSent,
-            static fn (\WP_Http_Cookie $c) => $c->name === 'PHPSESSID'
-        ));
-        self::assertSame('abc123', $session[0]->value);
-    }
+    // The cookie must have been replayed on the second outbound call.
+    $cookiesSent = FakeWpHttp::sentArgs(1)['cookies'];
+    $names = array_map(static fn (\WP_Http_Cookie $c) => $c->name, $cookiesSent);
+    expect($names)->toContain('PHPSESSID');
+    $session = array_values(array_filter(
+        $cookiesSent,
+        static fn (\WP_Http_Cookie $c) => $c->name === 'PHPSESSID'
+    ));
+    expect($session[0]->value)->toBe('abc123');
+});
 
-    public function test_the_first_request_sends_an_empty_cookie_jar(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
+it('sends an empty cookie jar on the first request', function () {
+    FakeWpHttp::pushResponse(200, '');
 
-        (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
+    (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
 
-        self::assertSame([], FakeWpHttp::sentArgs(0)['cookies']);
-    }
+    expect(FakeWpHttp::sentArgs(0)['cookies'])->toBe([]);
+});
 
-    public function test_a_later_set_cookie_of_the_same_name_overrides_the_earlier_one(): void
-    {
-        FakeWpHttp::pushResponse(200, '', [], [new \WP_Http_Cookie(['name' => 'SID', 'value' => 'first'])]);
-        FakeWpHttp::pushResponse(200, '', [], [new \WP_Http_Cookie(['name' => 'SID', 'value' => 'second'])]);
-        FakeWpHttp::pushResponse(200, '');
+it('lets a later set-cookie of the same name override the earlier one', function () {
+    FakeWpHttp::pushResponse(200, '', [], [new \WP_Http_Cookie(['name' => 'SID', 'value' => 'first'])]);
+    FakeWpHttp::pushResponse(200, '', [], [new \WP_Http_Cookie(['name' => 'SID', 'value' => 'second'])]);
+    FakeWpHttp::pushResponse(200, '');
 
-        $transport = new WpHttpTransport();
-        $transport->request('GET', 'https://pbx.example.com/a'); // gets SID=first
-        $transport->request('GET', 'https://pbx.example.com/b'); // sends first, gets SID=second
-        $transport->request('GET', 'https://pbx.example.com/c'); // sends second
+    $transport = new WpHttpTransport();
+    $transport->request('GET', 'https://pbx.example.com/a'); // gets SID=first
+    $transport->request('GET', 'https://pbx.example.com/b'); // sends first, gets SID=second
+    $transport->request('GET', 'https://pbx.example.com/c'); // sends second
 
-        self::assertSame(['SID' => 'second'], $transport->cookies());
+    expect($transport->cookies())->toBe(['SID' => 'second']);
 
-        $secondCall = FakeWpHttp::sentArgs(1)['cookies'];
-        self::assertSame('first', $secondCall[0]->value);
+    $secondCall = FakeWpHttp::sentArgs(1)['cookies'];
+    expect($secondCall[0]->value)->toBe('first');
 
-        $thirdCall = FakeWpHttp::sentArgs(2)['cookies'];
-        self::assertSame('second', $thirdCall[0]->value);
-    }
+    $thirdCall = FakeWpHttp::sentArgs(2)['cookies'];
+    expect($thirdCall[0]->value)->toBe('second');
+});
 
-    public function test_a_cookie_with_an_empty_name_is_ignored(): void
-    {
-        FakeWpHttp::pushResponse(200, '', [], [
-            new \WP_Http_Cookie(['name' => '', 'value' => 'junk']),
-            new \WP_Http_Cookie(['name' => 'SID', 'value' => 'ok']),
-        ]);
+it('ignores a cookie with an empty name', function () {
+    FakeWpHttp::pushResponse(200, '', [], [
+        new \WP_Http_Cookie(['name' => '', 'value' => 'junk']),
+        new \WP_Http_Cookie(['name' => 'SID', 'value' => 'ok']),
+    ]);
 
-        $transport = new WpHttpTransport();
-        $transport->request('GET', 'https://pbx.example.com/');
+    $transport = new WpHttpTransport();
+    $transport->request('GET', 'https://pbx.example.com/');
 
-        self::assertSame(['SID' => 'ok'], $transport->cookies());
-    }
+    expect($transport->cookies())->toBe(['SID' => 'ok']);
+});
 
-    public function test_it_attaches_a_body_on_post_but_omits_it_on_an_empty_get(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
-        FakeWpHttp::pushResponse(200, '');
+it('attaches a body on POST but omits it on an empty GET', function () {
+    FakeWpHttp::pushResponse(200, '');
+    FakeWpHttp::pushResponse(200, '');
 
-        $transport = new WpHttpTransport();
-        $transport->request('POST', 'https://pbx.example.com/update', [], 'a=1&b=2');
-        $transport->request('GET', 'https://pbx.example.com/page');
+    $transport = new WpHttpTransport();
+    $transport->request('POST', 'https://pbx.example.com/update', [], 'a=1&b=2');
+    $transport->request('GET', 'https://pbx.example.com/page');
 
-        self::assertSame('a=1&b=2', FakeWpHttp::sentArgs(0)['body']);
-        self::assertArrayNotHasKey('body', FakeWpHttp::sentArgs(1));
-    }
+    expect(FakeWpHttp::sentArgs(0)['body'])->toBe('a=1&b=2')
+        ->and(FakeWpHttp::sentArgs(1))->not->toHaveKey('body');
+});
 
-    public function test_caller_headers_take_precedence_over_defaults(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
+it('gives caller headers precedence over the defaults', function () {
+    FakeWpHttp::pushResponse(200, '');
 
-        (new WpHttpTransport())->request(
-            'POST',
-            'https://pbx.example.com/update',
-            ['Content-Type' => 'application/x-www-form-urlencoded'],
-            'a=1',
-        );
+    (new WpHttpTransport())->request(
+        'POST',
+        'https://pbx.example.com/update',
+        ['Content-Type' => 'application/x-www-form-urlencoded'],
+        'a=1',
+    );
 
-        $headers = FakeWpHttp::sentArgs(0)['headers'];
-        self::assertSame('application/x-www-form-urlencoded', $headers['Content-Type']);
-        // Default Accept is still supplied.
-        self::assertArrayHasKey('Accept', $headers);
-    }
+    $headers = FakeWpHttp::sentArgs(0)['headers'];
+    expect($headers['Content-Type'])->toBe('application/x-www-form-urlencoded');
+    // Default Accept is still supplied.
+    expect($headers)->toHaveKey('Accept');
+});
 
-    public function test_it_introduces_itself_as_beacon_by_default(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
+it('introduces itself as Beacon by default', function () {
+    FakeWpHttp::pushResponse(200, '');
 
-        (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
+    (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
 
-        self::assertSame(
-            'Beacon/9.9.9 (rest@aa-bristol.org; https://example.test)',
-            FakeWpHttp::sentArgs(0)['user-agent'],
-        );
-    }
+    expect(FakeWpHttp::sentArgs(0)['user-agent'])
+        ->toBe('Beacon/9.9.9 (rest@aa-bristol.org; https://example.test)');
+});
 
-    public function test_a_driver_user_agent_overrides_the_beacon_default(): void
-    {
-        // Tamar owns the conversation with the panel, so the panel
-        // should see Tamar rather than the framework underneath it.
-        FakeWpHttp::pushResponse(200, '');
+it('lets a driver user agent override the Beacon default', function () {
+    // Tamar owns the conversation with the panel, so the panel
+    // should see Tamar rather than the framework underneath it.
+    FakeWpHttp::pushResponse(200, '');
 
-        (new WpHttpTransport(userAgent: 'Tamar/1.2.3 (rest@aa-bristol.org; https://example.test)'))
-            ->request('GET', 'https://pbx.example.com/');
+    (new WpHttpTransport(userAgent: 'Tamar/1.2.3 (rest@aa-bristol.org; https://example.test)'))
+        ->request('GET', 'https://pbx.example.com/');
 
-        self::assertSame(
-            'Tamar/1.2.3 (rest@aa-bristol.org; https://example.test)',
-            FakeWpHttp::sentArgs(0)['user-agent'],
-        );
-    }
+    expect(FakeWpHttp::sentArgs(0)['user-agent'])
+        ->toBe('Tamar/1.2.3 (rest@aa-bristol.org; https://example.test)');
+});
 
-    public function test_method_is_upper_cased(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
+it('upper-cases the method', function () {
+    FakeWpHttp::pushResponse(200, '');
 
-        (new WpHttpTransport())->request('post', 'https://pbx.example.com/update', [], 'a=1');
+    (new WpHttpTransport())->request('post', 'https://pbx.example.com/update', [], 'a=1');
 
-        self::assertSame('POST', FakeWpHttp::sentArgs(0)['method']);
-    }
+    expect(FakeWpHttp::sentArgs(0)['method'])->toBe('POST');
+});
 
-    public function test_tls_verification_and_timeout_are_passed_through(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
+it('passes TLS verification and timeout through', function () {
+    FakeWpHttp::pushResponse(200, '');
 
-        (new WpHttpTransport(verifyTls: false, timeoutSeconds: 42))
-            ->request('GET', 'https://pbx.example.com/');
+    (new WpHttpTransport(verifyTls: false, timeoutSeconds: 42))
+        ->request('GET', 'https://pbx.example.com/');
 
-        $args = FakeWpHttp::sentArgs(0);
-        self::assertFalse($args['sslverify']);
-        self::assertSame(42, $args['timeout']);
-    }
+    $args = FakeWpHttp::sentArgs(0);
+    expect($args['sslverify'])->toBeFalse()
+        ->and($args['timeout'])->toBe(42);
+});
 
-    public function test_redirects_are_followed_by_default_and_configurable(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
-        FakeWpHttp::pushResponse(200, '');
+it('follows redirects by default and makes that configurable', function () {
+    FakeWpHttp::pushResponse(200, '');
+    FakeWpHttp::pushResponse(200, '');
 
-        (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
-        self::assertSame(5, FakeWpHttp::sentArgs(0)['redirection']);
+    (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
+    expect(FakeWpHttp::sentArgs(0)['redirection'])->toBe(5);
 
-        (new WpHttpTransport(maxRedirects: 0))->request('GET', 'https://pbx.example.com/');
-        self::assertSame(0, FakeWpHttp::sentArgs(1)['redirection']);
-    }
-}
+    (new WpHttpTransport(maxRedirects: 0))->request('GET', 'https://pbx.example.com/');
+    expect(FakeWpHttp::sentArgs(1)['redirection'])->toBe(0);
+});

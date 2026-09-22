@@ -10,125 +10,114 @@ use Beacon\Forwarding\Interfaces\ForwardingException;
 use Beacon\Forwarding\Models\ForwardingRule;
 use Beacon\Rest\ForwardingRestController;
 use Beacon\Targets\Models\ForwardingTarget;
-use BleedingDeacons\WpMocks\TestCase;
 
-/**
+/*
  * Exercises the controller's route callbacks directly against a fake
  * driver — the REST plumbing (route registration, permissions) is thin
  * WP glue; the behaviour worth testing is the model serialisation and
  * the no-driver / driver-error mapping.
  */
-final class ForwardingRestControllerTest extends TestCase
+
+// -- helpers ----------------------------------------------------------
+
+function forwardingControllerWith(CallForwardingService $svc): ForwardingRestController
 {
-    public function test_listRules_serialises_rules(): void
-    {
-        $svc = new FakeForwardingService(rules: [
-            new ForwardingRule(['id' => '1', 'label' => 'Day', 'target_id' => 'num:123', 'match' => ['type' => 'any']]),
-        ]);
-        $resp = $this->controllerWith($svc)->listRules(new \WP_REST_Request());
-
-        self::assertInstanceOf(\WP_REST_Response::class, $resp);
-        self::assertSame(200, $resp->get_status());
-        $data = $resp->get_data();
-        self::assertCount(1, $data);
-        self::assertSame('1', $data[0]['id']);
-        self::assertSame('num:123', $data[0]['target_id']);
-    }
-
-    public function test_listTargets_serialises_targets(): void
-    {
-        $svc = new FakeForwardingService(targets: [
-            new ForwardingTarget(['id' => 'num:123', 'kind' => 'number', 'label' => 'Steve', 'address' => '0123']),
-        ]);
-        $resp = $this->controllerWith($svc)->listTargets(new \WP_REST_Request());
-
-        self::assertSame('num:123', $resp->get_data()[0]['id']);
-        self::assertSame('number', $resp->get_data()[0]['kind']);
-    }
-
-    public function test_getRule_returns_404_when_absent(): void
-    {
-        $svc = new FakeForwardingService(rules: []);
-        $resp = $this->controllerWith($svc)->getRule(new \WP_REST_Request(['id' => '999']));
-
-        self::assertInstanceOf(\WP_Error::class, $resp);
-        self::assertSame('beacon_rule_not_found', $resp->get_error_code());
-        self::assertSame(404, $resp->get_error_data()['status']);
-    }
-
-    public function test_createRule_forces_empty_id_and_returns_new_id(): void
-    {
-        $svc = new FakeForwardingService();
-        $resp = $this->controllerWith($svc)->createRule(new \WP_REST_Request([
-            'id' => 'ignored',
-            'label' => 'New',
-            'target_id' => 'num:555',
-            'match' => ['type' => 'time_window', 'value' => ['from' => '09:00', 'to' => '17:00', 'days' => ['mon']]],
-        ]));
-
-        self::assertInstanceOf(\WP_REST_Response::class, $resp);
-        self::assertSame(201, $resp->get_status());
-        self::assertSame('99', $resp->get_data()['id']);
-        // The id from the URL/body must be ignored on create — the rule
-        // handed to the driver carries an empty id.
-        self::assertSame('', $svc->saved[0]->getId());
-        self::assertSame('num:555', $svc->saved[0]->getTargetId());
-    }
-
-    public function test_updateRule_uses_path_id(): void
-    {
-        $svc = new FakeForwardingService();
-        $resp = $this->controllerWith($svc)->updateRule(new \WP_REST_Request([
-            'id' => '2',
-            'label' => 'Edited',
-            'target_id' => 'num:777',
-            'match' => ['type' => 'any'],
-        ]));
-
-        self::assertSame(200, $resp->get_status());
-        self::assertSame('2', $resp->get_data()['id']);
-        self::assertSame('2', $svc->saved[0]->getId());
-    }
-
-    public function test_deleteRule_reports_outcome(): void
-    {
-        $svc = new FakeForwardingService();
-        $resp = $this->controllerWith($svc)->deleteRule(new \WP_REST_Request(['id' => '1']));
-
-        self::assertSame(['id' => '1', 'deleted' => true], $resp->get_data());
-        self::assertSame(['1'], $svc->deleted);
-    }
-
-    public function test_returns_503_when_no_driver_is_bound(): void
-    {
-        $controller = new ForwardingRestController(new BeaconContainer());
-        $resp = $controller->listRules(new \WP_REST_Request());
-
-        self::assertInstanceOf(\WP_Error::class, $resp);
-        self::assertSame('beacon_no_driver', $resp->get_error_code());
-        self::assertSame(503, $resp->get_error_data()['status']);
-    }
-
-    public function test_maps_forwarding_exception_to_502(): void
-    {
-        $svc = new FakeForwardingService(throw: new ForwardingException('login failed'));
-        $resp = $this->controllerWith($svc)->listRules(new \WP_REST_Request());
-
-        self::assertInstanceOf(\WP_Error::class, $resp);
-        self::assertSame('beacon_forwarding_failed', $resp->get_error_code());
-        self::assertSame(502, $resp->get_error_data()['status']);
-        self::assertSame('login failed', $resp->get_error_message());
-    }
-
-    // -- helpers ----------------------------------------------------------
-
-    private function controllerWith(CallForwardingService $svc): ForwardingRestController
-    {
-        $container = new BeaconContainer();
-        $container->set(CallForwardingService::class, $svc);
-        return new ForwardingRestController($container);
-    }
+    $container = new BeaconContainer();
+    $container->set(CallForwardingService::class, $svc);
+    return new ForwardingRestController($container);
 }
+
+it('serialises rules from listRules', function () {
+    $svc = new FakeForwardingService(rules: [
+        new ForwardingRule(['id' => '1', 'label' => 'Day', 'target_id' => 'num:123', 'match' => ['type' => 'any']]),
+    ]);
+    $resp = forwardingControllerWith($svc)->listRules(new \WP_REST_Request());
+
+    expect($resp)->toBeInstanceOf(\WP_REST_Response::class)
+        ->and($resp->get_status())->toBe(200);
+    $data = $resp->get_data();
+    expect($data)->toHaveCount(1)
+        ->and($data[0]['id'])->toBe('1')
+        ->and($data[0]['target_id'])->toBe('num:123');
+});
+
+it('serialises targets from listTargets', function () {
+    $svc = new FakeForwardingService(targets: [
+        new ForwardingTarget(['id' => 'num:123', 'kind' => 'number', 'label' => 'Steve', 'address' => '0123']),
+    ]);
+    $resp = forwardingControllerWith($svc)->listTargets(new \WP_REST_Request());
+
+    expect($resp->get_data()[0]['id'])->toBe('num:123')
+        ->and($resp->get_data()[0]['kind'])->toBe('number');
+});
+
+it('returns 404 from getRule when the rule is absent', function () {
+    $svc = new FakeForwardingService(rules: []);
+    $resp = forwardingControllerWith($svc)->getRule(new \WP_REST_Request(['id' => '999']));
+
+    expect($resp)->toBeInstanceOf(\WP_Error::class)
+        ->and($resp->get_error_code())->toBe('beacon_rule_not_found')
+        ->and($resp->get_error_data()['status'])->toBe(404);
+});
+
+it('forces an empty id on createRule and returns the new id', function () {
+    $svc = new FakeForwardingService();
+    $resp = forwardingControllerWith($svc)->createRule(new \WP_REST_Request([
+        'id' => 'ignored',
+        'label' => 'New',
+        'target_id' => 'num:555',
+        'match' => ['type' => 'time_window', 'value' => ['from' => '09:00', 'to' => '17:00', 'days' => ['mon']]],
+    ]));
+
+    expect($resp)->toBeInstanceOf(\WP_REST_Response::class)
+        ->and($resp->get_status())->toBe(201)
+        ->and($resp->get_data()['id'])->toBe('99');
+    // The id from the URL/body must be ignored on create — the rule
+    // handed to the driver carries an empty id.
+    expect($svc->saved[0]->getId())->toBe('')
+        ->and($svc->saved[0]->getTargetId())->toBe('num:555');
+});
+
+it('uses the path id on updateRule', function () {
+    $svc = new FakeForwardingService();
+    $resp = forwardingControllerWith($svc)->updateRule(new \WP_REST_Request([
+        'id' => '2',
+        'label' => 'Edited',
+        'target_id' => 'num:777',
+        'match' => ['type' => 'any'],
+    ]));
+
+    expect($resp->get_status())->toBe(200)
+        ->and($resp->get_data()['id'])->toBe('2')
+        ->and($svc->saved[0]->getId())->toBe('2');
+});
+
+it('reports the outcome of deleteRule', function () {
+    $svc = new FakeForwardingService();
+    $resp = forwardingControllerWith($svc)->deleteRule(new \WP_REST_Request(['id' => '1']));
+
+    expect($resp->get_data())->toBe(['id' => '1', 'deleted' => true])
+        ->and($svc->deleted)->toBe(['1']);
+});
+
+it('returns 503 when no driver is bound', function () {
+    $controller = new ForwardingRestController(new BeaconContainer());
+    $resp = $controller->listRules(new \WP_REST_Request());
+
+    expect($resp)->toBeInstanceOf(\WP_Error::class)
+        ->and($resp->get_error_code())->toBe('beacon_no_driver')
+        ->and($resp->get_error_data()['status'])->toBe(503);
+});
+
+it('maps a forwarding exception to 502', function () {
+    $svc = new FakeForwardingService(throw: new ForwardingException('login failed'));
+    $resp = forwardingControllerWith($svc)->listRules(new \WP_REST_Request());
+
+    expect($resp)->toBeInstanceOf(\WP_Error::class)
+        ->and($resp->get_error_code())->toBe('beacon_forwarding_failed')
+        ->and($resp->get_error_data()['status'])->toBe(502)
+        ->and($resp->get_error_message())->toBe('login failed');
+});
 
 /**
  * In-memory driver double. Records saves/deletes and can be told to
