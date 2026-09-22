@@ -12,9 +12,8 @@ if (!defined('ABSPATH')) {
  * Static bootstrap helper for activation / deactivation.
  *
  * Separated from HasCapabilities so PSR-4 autoloading resolves the
- * class. The activation hook in beacon.php `require_once`s this file
- * directly because the autoloader may not yet be registered when the
- * activation callback fires on a fresh install.
+ * class. Beacon is a library, so the driver plugin (Tamar) calls this
+ * from its own activation, deactivation and uninstall hooks.
  *
  * Roles created by `register()`:
  *  - beacon_operator   — full control: create / delete / activate

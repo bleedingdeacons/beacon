@@ -5,52 +5,58 @@
 [![Coverage Status](https://coveralls.io/repos/github/bleedingdeacons/beacon/badge.svg?branch=main)](https://coveralls.io/github/bleedingdeacons/beacon?branch=main)
 ![PHPStan](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbleedingdeacons%2Fbeacon%2Fmain%2Fphpstan.neon.dist&query=%24.parameters.level&label=PHPStan&prefix=level%20&color=brightgreen)
 ![PHPCS](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbleedingdeacons%2Fbeacon%2Fmain%2F.phpcs.xml.dist&query=%2Fruleset%2Frule%5B1%5D%2F%40ref&label=PHPCS&color=brightgreen)
-![Version](https://img.shields.io/badge/version-2.0.1-blue)
-![PHP](https://img.shields.io/badge/php-8.1%2B-777bb4)
+![Version](https://img.shields.io/github/v/tag/bleedingdeacons/beacon?label=version&color=blue)
+![PHP](https://img.shields.io/badge/php-8.4%2B-777bb4)
 ![Licence](https://img.shields.io/badge/licence-MIT%20(Modified)-green)
 
-PSR-compliant contract layer for WordPress-administered call forwarding. Ships interfaces, value objects, and shared traits; an implementation plugin (e.g. **Anchor**) provides the concrete driver and wires everything into the shared container.
+Call-forwarding contracts for the Bleeding Deacons suite. **A Composer library, not a WordPress plugin** — it is never activated. Tamar (the driver for Tamar Telecommunications' panel) and Trusted (the rota) each `require` it, and it is loaded by their own Composer autoloaders.
 
-## Architecture
+Until v3.0.0 Beacon was a plugin of its own that owned a PSR-11 container and fired `beacon/loaded`. It became a library so call forwarding stops needing a separate plugin to be installed and activated alongside the one that actually does the work.
+
+## How a driver reaches a consumer
 
 ```
-plugins_loaded  ──▶  Beacon  ──fires──▶  beacon/loaded  ──▶  Anchor
-                     (contracts)                            (implementation)
+Tamar (plugins_loaded)  ──bind──▶  ForwardingRegistry  ◀──get──  Trusted (when it needs a driver)
 ```
 
-- **Beacon** registers contracts (`CallForwardingService`, `HttpTransport`) into a PSR-11 container and fires `beacon/loaded`.
-- **Anchor** binds a concrete driver against those contracts on `beacon/loaded`. The driver fetches an HTML configuration page from the upstream PBX, parses it, and POSTs back changes to apply forwarding rules.
+- **Tamar** builds its driver behind a resolver and calls `ForwardingRegistry::bind()`.
+- **Trusted** calls `ForwardingRegistry::get()` at the moment it needs to forward, and gets `null` when no driver is bound.
 
-This separation lets you swap implementations (or stand up tests with mocks) without touching consumers, and gives the same Beacon-shaped admin UI to every PBX the project ends up integrating with.
+Both plugins vendor their own copy of this package, but a PHP class loads once per request, so whichever autoloader supplies `ForwardingRegistry` both plugins share its state. Nothing depends on which plugin WordPress includes first.
 
-## Beacon ships only contracts
+**Keep the two copies compatible.** Whichever plugin's autoloader loads a class first supplies it to both, so Tamar and Trusted should require the same major version. A breaking change here is a new major, and both consumers move to it together.
+
+## What it ships
 
 | | |
 |---|---|
 | `Beacon\Forwarding\Interfaces\CallForwardingService` | The driver contract — list/save/delete rules, list targets, commit, test. |
+| `Beacon\Forwarding\ForwardingRegistry` | Where a driver is published and a consumer finds it. |
 | `Beacon\Forwarding\Interfaces\ForwardingException` | Common throwable for driver failures. |
 | `Beacon\Forwarding\Models\ForwardingRule` | Immutable value object: match condition + target. |
 | `Beacon\Targets\Models\ForwardingTarget` | Immutable value object: destination (number/extension/voicemail). |
 | `Beacon\Forwarding\AbstractCallForwardingService` | Shared validation + hydration drivers can extend. |
-| `Beacon\Transport\Interfaces\HttpTransport` | Abstract HTTP layer so drivers stay testable. |
+| `Beacon\Transport\…` | `HttpTransport` contract and the WordPress HTTP API implementation. |
+| `Beacon\Core\BeaconContainer` | Minimal PSR-11 container a driver can wire itself with. |
+| `Beacon\Capabilities\CapabilityBootstrap` | The forwarding roles and capabilities below. |
+| `Beacon\Rest\ForwardingRestController` | Optional `beacon/v1` REST API over the bound driver. |
 
-Beacon itself never opens a socket and never knows about your PBX.
+The capabilities and the REST controller are classes only. **The driver plugin wires them**: Tamar registers the roles on activation, removes them on deactivation and uninstall, and registers the REST routes when `BEACON_ENABLE_REST` is defined in `wp-config.php`.
 
 ## Installation
 
-```bash
-composer install
+In the consuming plugin's `composer.json`:
+
+```json
+"repositories": [
+    { "type": "vcs", "url": "https://github.com/bleedingdeacons/beacon" }
+],
+"require": {
+    "bleedingdeacons/beacon": "^3.0"
+}
 ```
 
-Activate Beacon, then activate an implementation plugin (e.g. Tamar). Beacon alone does nothing visible — it will surface an admin notice when no driver is bound.
-
-## Hooks
-
-| Hook | Params | When |
-|---|---|---|
-| `beacon/container` (filter) | `?ContainerInterface` | Lets a host plugin (e.g. Unity) supply a shared PSR-11 container. Return your container to have Beacon use it. |
-| `beacon/register_services` | `ContainerInterface` | During Beacon's service-provider registration. Implementations should hook this for early bindings. |
-| `beacon/loaded` | `ContainerInterface` | After Beacon has registered everything. Implementations bind their driver here. |
+Releases are `vX.Y.Z` tags cut by hand on `main`. There is no zip and no GitHub Release asset.
 
 ## Capabilities
 
@@ -61,41 +67,14 @@ Activate Beacon, then activate an implementation plugin (e.g. Tamar). Beacon alo
 | `beacon_push_config`       | Operator + Dispatcher — commit pending changes upstream. |
 | `beacon_view_forwarding`   | Operator + Dispatcher + Viewer — read-only audit. |
 
-## File layout
-
-```
-beacon/
-├── beacon.php                   Bootstrap
-├── uninstall.php                Capability cleanup
-├── composer.json                PSR-4 autoload
-├── src/
-│   ├── Plugin.php               Boots container, fires beacon/loaded
-│   ├── Core/
-│   │   ├── BeaconContainer.php       Minimal PSR-11 container
-│   │   └── BeaconServiceProvider.php
-│   ├── Logger/HasLogger.php
-│   ├── Capabilities/HasCapabilities.php
-│   ├── Forwarding/
-│   │   ├── Interfaces/CallForwardingService.php
-│   │   ├── Interfaces/ForwardingException.php
-│   │   ├── Models/ForwardingRule.php
-│   │   └── AbstractCallForwardingService.php
-│   ├── Targets/Models/ForwardingTarget.php
-│   └── Transport/
-│       ├── Interfaces/HttpTransport.php
-│       └── Interfaces/TransportException.php
-└── tests/
-    └── Unit/
-```
-
 ## Requirements
 
 - WordPress 6.1+
-- PHP 8.1+
+- PHP 8.4+
 
 ## Testing
 
-Install the dev dependencies and run the suite from the plugin directory:
+Install the dev dependencies and run the suite from the repository root:
 
 ```bash
 composer install

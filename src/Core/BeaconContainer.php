@@ -14,11 +14,8 @@ use Psr\Container\NotFoundExceptionInterface;
 /**
  * Minimal PSR-11 container with factory + shared-instance support.
  *
- * This exists so Beacon can run standalone — without depending on
- * Unity or any other ecosystem container. Hosting plugins that want
- * Beacon to share their container can hook `beacon/container` and
- * return their own PSR-11 implementation; Beacon will use it
- * transparently.
+ * A driver plugin (Tamar) wires its services into one of these rather
+ * than depending on Unity's container or any other.
  *
  * Two binding styles are supported:
  *  - `set($id, $instance)`         — store a pre-built object/value.
