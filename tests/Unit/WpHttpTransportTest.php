@@ -198,8 +198,9 @@ it('introduces itself as Beacon by default', function () {
 
     (new WpHttpTransport())->request('GET', 'https://pbx.example.com/');
 
+    // The version is whatever Composer installed, so only its presence is pinned.
     expect(FakeWpHttp::sentArgs(0)['user-agent'])
-        ->toBe('Beacon/9.9.9 (rest@aa-bristol.org; https://example.test)');
+        ->toMatch('#^Beacon/\S+ \(rest@aa-bristol\.org; https://example\.test\)$#');
 });
 
 it('lets a driver user agent override the Beacon default', function () {

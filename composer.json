@@ -1,7 +1,7 @@
 {
-    "name": "bleeding-deacons/beacon",
-    "description": "Abstract interface plugin for call-forwarding systems. Defines contracts; an implementation plugin provides the concrete driver.",
-    "type": "wordpress-plugin",
+    "name": "bleedingdeacons/beacon",
+    "description": "Call-forwarding contracts, models, HTTP transport, capabilities and REST controller, shared by Tamar and Trusted. A Composer library, not a WordPress plugin.",
+    "type": "library",
     "license": "MIT (Modified)",
     "authors": [
         {
@@ -39,10 +39,6 @@
         }
     },
     "scripts": {
-        "build": "php build.php build:production",
-        "build:production": "php build.php build:production",
-        "build:dev": "php build.php build:dev",
-        "build:clean": "php build.php clean",
         "test": "pest",
         "test:unit": "pest --testsuite=Unit",
         "test:integration": "pest --testsuite=Integration",
