@@ -9,9 +9,8 @@ use Beacon\Transport\Interfaces\HttpTransport;
 use Beacon\Transport\Interfaces\HttpTransportFactory;
 use Beacon\Transport\WpHttpTransport;
 use Beacon\Transport\WpHttpTransportFactory;
-use BleedingDeacons\WpMocks\TestCase;
 
-/**
+/*
  * Unit tests for {@see WpHttpTransportFactory}.
  *
  * The factory's job is narrow: implement {@see HttpTransportFactory},
@@ -21,81 +20,72 @@ use BleedingDeacons\WpMocks\TestCase;
  * resulting transport against the WP HTTP API shims (see
  * tests/bootstrap.php) and inspecting the args it sent.
  */
-final class WpHttpTransportFactoryTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        FakeWpHttp::reset();
-    }
 
-    public function test_it_implements_the_factory_contract(): void
-    {
-        self::assertInstanceOf(HttpTransportFactory::class, new WpHttpTransportFactory());
-    }
+beforeEach(function () {
+    FakeWpHttp::reset();
+});
 
-    public function test_create_returns_an_http_transport(): void
-    {
-        $transport = (new WpHttpTransportFactory())->create();
+it('implements the factory contract', function () {
+    expect(new WpHttpTransportFactory())->toBeInstanceOf(HttpTransportFactory::class);
+});
 
-        self::assertInstanceOf(HttpTransport::class, $transport);
-        self::assertInstanceOf(WpHttpTransport::class, $transport);
-    }
+it('returns an http transport from create()', function () {
+    $transport = (new WpHttpTransportFactory())->create();
 
-    public function test_each_create_call_returns_a_fresh_instance(): void
-    {
-        $factory = new WpHttpTransportFactory();
+    expect($transport)->toBeInstanceOf(HttpTransport::class)
+        ->toBeInstanceOf(WpHttpTransport::class);
+});
 
-        $a = $factory->create();
-        $b = $factory->create();
+it('returns a fresh instance from each create() call', function () {
+    $factory = new WpHttpTransportFactory();
 
-        // Distinct objects → independent cookie jars, so a session
-        // established on one never leaks into the other.
-        self::assertNotSame($a, $b);
-    }
+    $a = $factory->create();
+    $b = $factory->create();
 
-    public function test_factory_defaults_reach_the_transport(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
+    // Distinct objects → independent cookie jars, so a session
+    // established on one never leaks into the other.
+    expect($a)->not->toBe($b);
+});
 
-        (new WpHttpTransportFactory(verifyTls: false, timeoutSeconds: 42, maxRedirects: 0))
-            ->create()
-            ->request('GET', 'https://pbx.example.com/');
+it('passes the factory defaults through to the transport', function () {
+    FakeWpHttp::pushResponse(200, '');
 
-        $args = FakeWpHttp::sentArgs(0);
-        self::assertFalse($args['sslverify']);
-        self::assertSame(42, $args['timeout']);
-        self::assertSame(0, $args['redirection']);
-    }
+    (new WpHttpTransportFactory(verifyTls: false, timeoutSeconds: 42, maxRedirects: 0))
+        ->create()
+        ->request('GET', 'https://pbx.example.com/');
 
-    public function test_per_call_overrides_win_over_factory_defaults(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
+    $args = FakeWpHttp::sentArgs(0);
+    expect($args['sslverify'])->toBeFalse()
+        ->and($args['timeout'])->toBe(42)
+        ->and($args['redirection'])->toBe(0);
+});
 
-        // Factory configured one way…
-        (new WpHttpTransportFactory(verifyTls: true, timeoutSeconds: 15, maxRedirects: 5))
-            // …but this specific transport asks for different knobs.
-            ->create(verifyTls: false, timeoutSeconds: 99, maxRedirects: 0)
-            ->request('GET', 'https://pbx.example.com/');
+it('lets per-call overrides win over the factory defaults', function () {
+    FakeWpHttp::pushResponse(200, '');
 
-        $args = FakeWpHttp::sentArgs(0);
-        self::assertFalse($args['sslverify']);
-        self::assertSame(99, $args['timeout']);
-        self::assertSame(0, $args['redirection']);
-    }
+    // Factory configured one way…
+    (new WpHttpTransportFactory(verifyTls: true, timeoutSeconds: 15, maxRedirects: 5))
+        // …but this specific transport asks for different knobs.
+        ->create(verifyTls: false, timeoutSeconds: 99, maxRedirects: 0)
+        ->request('GET', 'https://pbx.example.com/');
 
-    public function test_omitted_overrides_fall_back_to_factory_defaults(): void
-    {
-        FakeWpHttp::pushResponse(200, '');
+    $args = FakeWpHttp::sentArgs(0);
+    expect($args['sslverify'])->toBeFalse()
+        ->and($args['timeout'])->toBe(99)
+        ->and($args['redirection'])->toBe(0);
+});
 
-        // Only maxRedirects is overridden; the rest must come from the
-        // factory's configured defaults.
-        (new WpHttpTransportFactory(verifyTls: false, timeoutSeconds: 30))
-            ->create(maxRedirects: 1)
-            ->request('GET', 'https://pbx.example.com/');
+it('falls back to the factory defaults for omitted overrides', function () {
+    FakeWpHttp::pushResponse(200, '');
 
-        $args = FakeWpHttp::sentArgs(0);
-        self::assertFalse($args['sslverify']);  // factory default
-        self::assertSame(30, $args['timeout']); // factory default
-        self::assertSame(1, $args['redirection']); // per-call override
-    }
-}
+    // Only maxRedirects is overridden; the rest must come from the
+    // factory's configured defaults.
+    (new WpHttpTransportFactory(verifyTls: false, timeoutSeconds: 30))
+        ->create(maxRedirects: 1)
+        ->request('GET', 'https://pbx.example.com/');
+
+    $args = FakeWpHttp::sentArgs(0);
+    expect($args['sslverify'])->toBeFalse()      // factory default
+        ->and($args['timeout'])->toBe(30)        // factory default
+        ->and($args['redirection'])->toBe(1);    // per-call override
+});

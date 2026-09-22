@@ -4,53 +4,50 @@ declare(strict_types=1);
 
 namespace Beacon\Tests\Unit;
 
-use BleedingDeacons\WpMocks\TestCase;
 use Psr\Container\NotFoundExceptionInterface;
 use Beacon\Core\BeaconContainer;
 
-final class BeaconContainerTest extends TestCase
-{
-    public function test_set_and_get_round_trip(): void
-    {
-        $c = new BeaconContainer();
-        $c->set('answer', 42);
+it('round-trips set and get', function () {
+    $c = new BeaconContainer();
+    $c->set('answer', 42);
 
-        $this->assertTrue($c->has('answer'));
-        $this->assertSame(42, $c->get('answer'));
-    }
+    expect($c->has('answer'))->toBeTrue()
+        ->and($c->get('answer'))->toBe(42);
+});
 
-    public function test_factory_builds_lazily_and_caches(): void
-    {
-        $c = new BeaconContainer();
-        $calls = 0;
-        $c->factory('thing', function () use (&$calls) {
-            $calls++;
-            return new \stdClass();
-        });
+it('builds a factory lazily and caches the result', function () {
+    $c = new BeaconContainer();
+    $calls = 0;
+    $c->factory('thing', function () use (&$calls) {
+        $calls++;
+        return new \stdClass();
+    });
 
-        $this->assertSame(0, $calls, 'factory must not run at registration');
-        $first = $c->get('thing');
-        $second = $c->get('thing');
+    expect($calls)->toBe(0, 'factory must not run at registration');
+    $first = $c->get('thing');
+    $second = $c->get('thing');
 
-        $this->assertSame(1, $calls, 'factory must run exactly once');
-        $this->assertSame($first, $second, 'get must return the cached instance');
-    }
+    expect($calls)->toBe(1, 'factory must run exactly once')
+        ->and($first)->toBe($second, 'get must return the cached instance');
+});
 
-    public function test_set_overrides_prior_factory(): void
-    {
-        // Implementation plugins overwrite Beacon's defaults — last
-        // bind wins.
-        $c = new BeaconContainer();
-        $c->factory('driver', fn () => 'default');
-        $c->set('driver', 'overridden');
+it('lets set override a prior factory', function () {
+    // Implementation plugins overwrite Beacon's defaults — last
+    // bind wins.
+    $c = new BeaconContainer();
+    $c->factory('driver', fn () => 'default');
+    $c->set('driver', 'overridden');
 
-        $this->assertSame('overridden', $c->get('driver'));
-    }
+    expect($c->get('driver'))->toBe('overridden');
+});
 
-    public function test_missing_id_throws_psr_not_found(): void
-    {
-        $c = new BeaconContainer();
-        $this->expectException(NotFoundExceptionInterface::class);
-        $c->get('does-not-exist');
-    }
-}
+it('throws a PSR not-found exception for a missing id', function () {
+    // PHPUnit's expectException rather than Pest's ->throws(): the contract
+    // here is the PSR interface, and Pest's throws()/toThrow() only treat a
+    // concrete class as a type — given an interface, they fall back to
+    // matching its name against the exception message and fail.
+    $this->expectException(NotFoundExceptionInterface::class);
+
+    $c = new BeaconContainer();
+    $c->get('does-not-exist');
+});
