@@ -11,7 +11,9 @@
 
 Call-forwarding contracts for the Bleeding Deacons suite. **A Composer library, not a WordPress plugin** — it is never activated. Tamar (the driver for Tamar Telecommunications' panel) and Trusted (the rota) each `require` it, and it is loaded by their own Composer autoloaders.
 
-Until v3.0.0 Beacon was a plugin of its own that owned a PSR-11 container and fired `beacon/loaded`. It became a library so call forwarding stops needing a separate plugin to be installed and activated alongside the one that actually does the work.
+Until 2026-09-22 Beacon was a plugin of its own that owned a PSR-11 container and fired `beacon/loaded`. It became a library so call forwarding stops needing a separate plugin to be installed and activated alongside the one that actually does the work.
+
+**Versions restart at v1.0.1** (2026-10-09). As a library Beacon reached v3.0.1, a number carried over from its plugin years; it was renumbered to v1, keeping the minor and patch, as Tamar and Trusted were. Every earlier tag and GitHub Release was deleted — the plugin-era v1.4.x tags would otherwise have satisfied `^1.0` — so `^1.0` means the library and nothing older.
 
 ## How a driver reaches a consumer
 
@@ -52,7 +54,7 @@ In the consuming plugin's `composer.json`:
     { "type": "vcs", "url": "https://github.com/bleedingdeacons/beacon" }
 ],
 "require": {
-    "bleedingdeacons/beacon": "^3.0"
+    "bleedingdeacons/beacon": "^1.0"
 }
 ```
 
